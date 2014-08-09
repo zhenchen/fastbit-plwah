@@ -199,6 +199,8 @@ private:
 	static const word_t MAXCNT_PLWAH;
 	static const word_t MAXCNT_PB;	//when a word contains a one-dirty-bit PiggyBack, the maximum of fill number.
 	static const word_t PIGGYBACK;	//PiggyBack flag: the third bit is set as 1;
+	static const word_t PIGGY_TO_FILL; //The 3rd - 9th bits are set as 0, and the other bits are set as 1. Help extract the part of Fill from a Fill with a PiggyBack.
+	static const word_t PIGGY_TO_LITERAL; //The 5th - 9th bits are set as 1, and the other bits are set as 0. Help extract the position of the dirty bit from a Fill with a PiggyBack.
 
     /// @brief The struct active_word stores the last few bits that do not
     /// fill a whole word.
