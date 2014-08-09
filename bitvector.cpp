@@ -34,6 +34,10 @@ const ibis::bitvector::word_t ibis::bitvector::HEADER0 =
 (2U << ibis::bitvector::SECONDBIT);
 const ibis::bitvector::word_t ibis::bitvector::HEADER1 =
 (3U << ibis::bitvector::SECONDBIT);
+const ibis::bitvector::word_t ibis::bitvector::PIGGY_TO_FILL =
+((3U << ibis::bitvector::SECONDBIT) | MAXCNT_PB);
+const ibis::bitvector::word_t ibis::bitvector::PIGGY_TO_LITERAL =
+(((1U << (ibis::bitvector::MAXBITS - 3)) - 1U) & (~MAXCNT_PB));
 
 /// Default constructor.  Creates a new empty bitvector.
 ibis::bitvector::bitvector() : nbits(0), nset(0), active(), m_vec() {
@@ -279,7 +283,7 @@ void ibis::bitvector::compress_plwah() {
 	void decode() {
 	    unsigned cnt, pos;
 		word_t tmp;
-		isMatrix = ((*it > ALLONES) && ((*it & MAXCNT) <= MAXCNT_PB) && (*it & PIGGYBACK == 0));
+		isMatrix = ((*it > ALLONES) && ((*it & MAXCNT) <= MAXCNT_PB) && ((*it & PIGGYBACK) == 0));
 		isPiggyBack = (!(*it > ALLONES));
 		if (isPiggyBack) {
 		    pos = 0;
@@ -291,7 +295,8 @@ void ibis::bitvector::compress_plwah() {
 				    ++ pos;
 			    }
 		    }
-			cnt = pos;
+			tmp >> 1;
+			cnt = pos + 1;
 			while (cnt<MAXBITS){
 				if ((tmp & 1U) == 0) break;
 				else {
@@ -312,7 +317,8 @@ void ibis::bitvector::compress_plwah() {
 					++ pos;
 				}
 			}
-			cnt = pos;
+			tmp >> 1;
+			cnt = pos + 1;
 			while (cnt<MAXBITS){
 				if ((tmp & 1U) == 1) break;
 				else {
@@ -456,6 +462,66 @@ void ibis::bitvector::compress() {
 	m_vec.erase(last.it, m_vec.end());
     }
 } // ibis::bitvector::compress
+
+
+// Convert stored plwah bitvectors into wah for further treatment. (Peng,August 9 2014)
+void ibis::bitvector::decompress_plwah()
+{
+	struct xrun {
+		bool isPiggyBack;
+		word_t Literal;
+		word_t Fill;
+		array_t<word_t>::iterator it;
+
+		xrun() : isPiggyBack(false), Literal(0U), Fill(0U), it(0) {};
+		void decode() {
+			isPiggyBack = (((*it >> (MAXBITS - 2)) | 2U) == 7U);
+			if (isPiggyBack) {
+				Fill = (*it & PIGGY_TO_FILL);
+				Literal = (1U << ((*it & PIGGY_TO_LITERAL) >> (MAXBITS - 8)));
+				if ((((*it >> (MAXBITS-3))) & 1U) != 1U) Literal = ~Literal;
+				Literal = (Literal & ((1U << MAXBITS) - 1U ));
+			}
+		}
+	};
+
+	xrun current;// point to the current code to be examined
+	xrun currentTmp;
+	//initialize new bitvector. At last m_vec would be replaced by tmp_vec.
+	
+	word_t wahLength = *(m_vec.begin());  // read length of wah.
+//	int cpxLength = m_vec.size();
+	
+//	std::cout<<"cpxLength"<<cpxLength<<std::endl;
+//	std::cout<<"m_vec.size"<<m_vec.size()<<std::endl;
+	
+	array_t<word_t> tmp_array(wahLength+1,0);
+
+	bitvector * tmp_vec = new bitvector(tmp_array);
+
+	currentTmp.it = tmp_vec->m_vec.begin();
+	current.it = m_vec.begin();
+	current.decode();
+
+	for (++current.it; current.it <m_vec.end(); ++ current.it)
+	{
+		current.decode();
+		if(!current.isPiggyBack)
+		{
+			*currentTmp.it = *current.it;
+			currentTmp.it++;
+		}
+		else
+		{
+			*currentTmp.it = current.Fill;
+			currentTmp.it++;
+			*currentTmp.it = current.Literal;
+			currentTmp.it++;
+		}
+//		std::cout<<std::hex<<*(m_vec.begin())<<std::endl;	
+	}
+	m_vec.swap(tmp_vec->m_vec);//exanchge the two arrays.
+}// ibis::bitvector::decompress_plwah
 
 /// Decompress the currently compressed bitvector.  It turns all fill words
 /// into literal words.  Throws an ibis::bad_alloc exception if it fails to
