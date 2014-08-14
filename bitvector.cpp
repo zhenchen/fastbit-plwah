@@ -2223,7 +2223,7 @@ void ibis::bitvector::write(const char * fn) const {
 /// current file pointer position and overwrites existing content if there
 /// is any.  The caller is responsible for openning the file and closing
 /// the file.
-void ibis::bitvector::write(int out) const {
+void ibis::bitvector::write(int out) {
     if (out < 0)
 	return;
 
