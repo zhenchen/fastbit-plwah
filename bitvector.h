@@ -125,6 +125,10 @@ public:
 
     void compress();
     void decompress();
+    
+    void compress_plwah();
+    void decompress_plwah();
+    
     word_t compressible() const;
     /// Does this bit vector use less space than the maximum? Return true
     /// if yes, otherwise false.
