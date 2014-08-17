@@ -343,6 +343,12 @@ void ibis::bitvector::compress_plwah() {
 	last.decode();
     for (++ current.it; current.it < m_vec.end(); ++ current.it) {
 		current.decode();
+		// transform the solated full-zero words into 0-fills
+		if (*last.it == 0x00000000) {
+			*last.it = 0x80000001;
+			last.isMatrix = true;
+		}
+		//merge
 		if (last.isMatrix && current.isPiggyBack) {
 			*(last.it) = ((*(last.it)) | (current.dirty));
 			++ current.it;
@@ -509,13 +515,22 @@ void ibis::bitvector::decompress_plwah()
 		if(!current.isPiggyBack)
 		{
 			*currentTmp.it = *current.it;
+			//transform the 0x80000001 into a leteral
+			if (*currentTmp.it ==0x80000001) *currentTmp.it = 0x00000000;
+			
 			currentTmp.it++;
 		}
 		else
 		{
 			*currentTmp.it = current.Fill;
+			//transform the 0x80000001 into a leteral
+			if (*currentTmp.it ==0x80000001) *currentTmp.it = 0x00000000;
+			
 			currentTmp.it++;
 			*currentTmp.it = current.Literal;
+			//transform the 0x80000001 into a leteral
+			if (*currentTmp.it ==0x80000001) *currentTmp.it = 0x00000000;
+			
 			currentTmp.it++;
 		}
 //		std::cout<<std::hex<<*(m_vec.begin())<<std::endl;	
