@@ -291,16 +291,16 @@ void ibis::bitvector::compress_plwah() {
 		    while (pos<MAXBITS){
 		        if ((tmp & 1U) == 0) break;
 			    else {
-		            tmp >> 1;
+		            tmp = tmp >> 1;
 				    ++ pos;
 			    }
 		    }
-			tmp >> 1;
+			tmp = tmp >> 1;
 			cnt = pos + 1;
 			while (cnt<MAXBITS){
 				if ((tmp & 1U) == 0) break;
 				else {
-					tmp >> 1;
+					tmp = tmp >> 1;
 					++ cnt;
 				}
 			}
@@ -313,16 +313,16 @@ void ibis::bitvector::compress_plwah() {
 			while (pos<MAXBITS){
 				if ((tmp & 1U) == 1) break;
 				else {
-					tmp >> 1;
+					tmp = tmp >> 1;
 					++ pos;
 				}
 			}
-			tmp >> 1;
+			tmp = tmp >> 1;
 			cnt = pos + 1;
 			while (cnt<MAXBITS){
 				if ((tmp & 1U) == 1) break;
 				else {
-					tmp >> 1;
+					tmp = tmp >> 1;
 					++ cnt;
 				}
 			}
