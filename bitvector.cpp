@@ -15,19 +15,25 @@
 
 // constances defined in bitvector
 const unsigned ibis::bitvector::MAXBITS =
-8*sizeof(ibis::bitvector::word_t) - 1;
+8*sizeof(ibis::bitvector::word_t) - 1U;
 const unsigned ibis::bitvector::SECONDBIT =
-ibis::bitvector::MAXBITS - 1;
+ibis::bitvector::MAXBITS - 1U;
+const unsigned ibis::bitvector::THIRDBIT =
+ibis::bitvector::MAXBITS - 2U;
+const unsigned ibis::bitvector::FOURTHBIT =
+ibis::bitvector::MAXBITS - 3U;
+const unsigned ibis::bitvector::NINTHBIT =
+ibis::bitvector::MAXBITS - 8U;
 const ibis::bitvector::word_t ibis::bitvector::ALLONES =
-((1U << ibis::bitvector::MAXBITS) - 1);
+((1U << ibis::bitvector::MAXBITS) - 1U);
 const ibis::bitvector::word_t ibis::bitvector::MAXCNT =
-((1U << ibis::bitvector::SECONDBIT) - 1);
+((1U << ibis::bitvector::SECONDBIT) - 1U);
 const ibis::bitvector::word_t ibis::bitvector::MAXCNT_PLWAH =
-MAXCNT >> 1;
+ibis::bitvector:: MAXCNT >> 1U;
 const ibis::bitvector::word_t ibis::bitvector::PIGGYBACK =
-(1U << (ibis::bitvector::SECONDBIT - 1));
+(1U << ibis::bitvector::THIRDBIT);
 const ibis::bitvector::word_t ibis::bitvector::MAXCNT_PB =
-((1U << (ibis::bitvector::MAXBITS - 8)) - 1);
+((1U << ibis::bitvector::NINTHBIT) - 1U);
 const ibis::bitvector::word_t ibis::bitvector::FILLBIT =
 (1U << ibis::bitvector::SECONDBIT);
 const ibis::bitvector::word_t ibis::bitvector::HEADER0 =
@@ -37,7 +43,7 @@ const ibis::bitvector::word_t ibis::bitvector::HEADER1 =
 const ibis::bitvector::word_t ibis::bitvector::PIGGY_TO_FILL =
 ((3U << ibis::bitvector::SECONDBIT) | MAXCNT_PB);
 const ibis::bitvector::word_t ibis::bitvector::PIGGY_TO_LITERAL =
-(((1U << (ibis::bitvector::MAXBITS - 3)) - 1U) & (~MAXCNT_PB));
+(((1U << ibis::bitvector::FOURTHBIT) - 1U) & (~MAXCNT_PB));
 
 /// Default constructor.  Creates a new empty bitvector.
 ibis::bitvector::bitvector() : nbits(0), nset(0), active(), m_vec() {
@@ -281,61 +287,56 @@ void ibis::bitvector::compress_plwah() {
 
 	xrun() : isMatrix(false), isPiggyBack(false), dirty(0), it(0) {};
 	void decode() {
-	    unsigned cnt, pos;
+	    unsigned cnt, pos, r;
 		word_t tmp;
-		isMatrix = ((*it > ALLONES) && ((*it & MAXCNT) <= MAXCNT_PB) && ((*it & PIGGYBACK) == 0));
+		unsigned popcount;
+		isMatrix = ((*it > ALLONES) && ((*it & PIGGYBACK) == 0) &&((*it & MAXCNT) <= MAXCNT_PB));
 		isPiggyBack = (!(*it > ALLONES));
+		
 		if (isPiggyBack) {
-		    pos = 0;
-		    tmp = *it;
-		    while (pos<MAXBITS){
-		        if ((tmp & 1U) == 0) break;
-			    else {
-		            tmp = tmp >> 1;
-				    ++ pos;
-			    }
-		    }
-			tmp = tmp >> 1;
-			cnt = pos + 1;
-			while (cnt<MAXBITS){
-				if ((tmp & 1U) == 0) break;
-				else {
-					tmp = tmp >> 1;
-					++ cnt;
+					
+			//calculate the number of 1
+			popcount = *it;
+			popcount -= (popcount>>1) & 0x55555555;
+			popcount  = (popcount & 0x33333333) + ((popcount>>2) & 0x33333333);
+			popcount  = ((popcount>>4) + popcount) & 0x0F0F0F0F;
+			popcount += popcount>>8;
+			popcount += popcount>>16;
+			popcount &= 0x0000003F;
+			
+			//if it is nearly 0-fill, find the position of 1
+			if (popcount ==1){
+				pos = 0;
+				tmp = *it;
+				r = 16;
+				while (r!=0){
+					if ((tmp & ((1<<r)-1))==0){
+						tmp = (tmp>>r);
+						pos += r;
+					}
+					r = (r>>1);
 				}
+				dirty = (PIGGYBACK | (pos << NINTHBIT));
 			}
-			if (cnt>=MAXBITS && pos<MAXBITS){
-				dirty = (PIGGYBACK | (pos << (MAXBITS-8)));
-			}
-			else{
-			pos = 0;
-			tmp = *it;
-			while (pos<MAXBITS){
-				if ((tmp & 1U) == 1) break;
-				else {
-					tmp = tmp >> 1;
-					++ pos;
-				}
-			}
-			tmp = tmp >> 1;
-			cnt = pos + 1;
-			while (cnt<MAXBITS){
-				if ((tmp & 1U) == 1) break;
-				else {
-					tmp = tmp >> 1;
-					++ cnt;
-				}
-			}
-			if (cnt>=MAXBITS && pos<MAXBITS){
-				dirty = (PIGGYBACK | (pos << (MAXBITS-8)) | (PIGGYBACK >>1 ));
+			//if it is nearly 1-fill, find the position of 0
+			else if (popcount == SECONDBIT){
+				pos = 0;
+				tmp = ~(*it & 0x80000000);
+				r = 16;
+				while (r!=0){
+					if ((tmp & ((1<<r)-1))==0){
+						tmp = (tmp>>r);
+						pos += r;
+					}
+					r = (r>>1);
+				}		    
+				dirty = (PIGGYBACK | (pos << NINTHBIT) | (PIGGYBACK >>1));
 			}
 			else isPiggyBack = false;
-			}
 		}
-	}
     };
     xrun last;	// point to the last code word in m_vec that might be modified
-                // NOTE: last.nWords is not used by this function
+                // NOTE: last.isPiggyBack and last.dirty are not used by this function
     xrun current;// point to the current code to be examined
 
     current.it = m_vec.begin();
@@ -358,8 +359,6 @@ void ibis::bitvector::compress_plwah() {
 		++ last.it;
 		*(last.it) = *(current.it);
 		last.isMatrix = current.isMatrix;
-		last.isPiggyBack = current.isPiggyBack;
-		last.dirty = current.dirty;
 	}
 	++ last.it;
     if (last.it < m_vec.end()) { // reduce the size of m_vec
@@ -399,6 +398,14 @@ void ibis::bitvector::compress() {
 	    if (current.isFill) { // current word is a fill word
 		if (current.fillBit == last.fillBit) { // same type of fill
 		    *(last.it) += current.nWords;
+
+			//limit the counter of fill no more than MAXCNT_PLWAH	
+			while ((*(last.it) & MAXCNT) > MAXCNT_PLWAH) {
+				*(last.it+1) = (*(last.it) - MAXCNT_PLWAH);
+				*(last.it) = (MAXCNT_PLWAH | *(last.it));
+				++ last.it;
+			}
+			
 		}
 		else { // different types of fills, move last foward by one
 		    ++ last.it;
@@ -409,7 +416,15 @@ void ibis::bitvector::compress() {
 	    else if ((last.fillBit == 0 && *(current.it) == 0) ||
 		     (last.fillBit != 0 && *(current.it) == ALLONES)){
 		// increase the last fill by 1 word
-		++ *(last.it);
+			++ *(last.it);
+			
+			//limit the counter of fill no more than MAXCNT_PLWAH	
+			while ((*(last.it) & MAXCNT) > MAXCNT_PLWAH) {
+				*(last.it+1) = (*(last.it) - MAXCNT_PLWAH);
+				*(last.it) = (MAXCNT_PLWAH | *(last.it));
+				++ last.it;
+			}
+		
 	    }
 	    else  { // move last forward by one
 		++ last.it;
@@ -421,16 +436,23 @@ void ibis::bitvector::compress() {
 	    // last word was a literal word, current word is a fill word
 	    if ((current.fillBit == 0 && *(last.it) == 0) ||
 		(current.fillBit != 0 && *(last.it) == ALLONES)) {
-		// change the last word into a fill word
-		*(last.it) = *(current.it) + 1;
-		last.fillBit = current.fillBit;
-		last.isFill = true;
+			// change the last word into a fill word
+			*(last.it) = *(current.it) + 1;
+			last.fillBit = current.fillBit;
+			last.isFill = true;
+		
+			//limit the counter of fill no more than MAXCNT_PLWAH	
+			while ((*(last.it) & MAXCNT) > MAXCNT_PLWAH) {
+				*(last.it+1) = (*(last.it) - MAXCNT_PLWAH);
+				*(last.it) = (MAXCNT_PLWAH | *(last.it));
+				++ last.it;
+			}
 	    }
 	    else { // move last forward by one
-		++ last.it;
-		last.isFill = true;
-		*(last.it) = *(current.it);
-		last.fillBit = current.fillBit;
+			++ last.it;
+			last.isFill = true;
+			*(last.it) = *(current.it);
+			last.fillBit = current.fillBit;
 	    }
 	}
 	else if (*(last.it) == *(current.it)) {
@@ -455,13 +477,6 @@ void ibis::bitvector::compress() {
 	    ++ last.it;
 	    *(last.it) = *(current.it);
 	}
-	if (last.isFill) {
-	while ((*(last.it) & MAXCNT) > MAXCNT_PLWAH) {
-        *(last.it+1) = (*(last.it) - MAXCNT_PLWAH);
-		*(last.it) = (MAXCNT_PLWAH | (last.fillBit << SECONDBIT) | (1U << MAXBITS));
-		++ last.it;
-	}
-	}
     }
     ++ last.it;
     if (last.it < m_vec.end()) { // reduce the size of m_vec
@@ -479,14 +494,15 @@ void ibis::bitvector::decompress_plwah()
 		word_t Fill;
 		array_t<word_t>::iterator it;
 
-		xrun() : isPiggyBack(false), Literal(0U), Fill(0U), it(0) {};
+		xrun() : isPiggyBack(false), Literal(0), Fill(0), it(0) {};
 		void decode() {
-			isPiggyBack = (((*it >> (MAXBITS - 2)) | 2U) == 7U);
+			isPiggyBack = ((*it >> THIRDBIT | 2U) == 7U);
 			if (isPiggyBack) {
 				Fill = (*it & PIGGY_TO_FILL);
-				Literal = (1U << ((*it & PIGGY_TO_LITERAL) >> (MAXBITS - 8)));
-				if ((((*it >> (MAXBITS-3))) & 1U) != 1U) Literal = ~Literal;
-				Literal = (Literal & ((1U << MAXBITS) - 1U ));
+				Literal = (1U << ((*it & PIGGY_TO_LITERAL) >> NINTHBIT));
+				if (((*it >> FOURTHBIT) & 1U) == 1U){
+					Literal = ((~Literal) & ALLONES);
+				}
 			}
 		}
 	};
@@ -507,7 +523,6 @@ void ibis::bitvector::decompress_plwah()
 
 	currentTmp.it = tmp_vec->m_vec.begin();
 	current.it = m_vec.begin();
-	current.decode();
 
 	for (++current.it; current.it <m_vec.end(); ++ current.it)
 	{
@@ -518,7 +533,7 @@ void ibis::bitvector::decompress_plwah()
 			//transform the 0x80000001 into a leteral
 			if (*currentTmp.it ==0x80000001) *currentTmp.it = 0x00000000;
 			
-			currentTmp.it++;
+			++currentTmp.it;
 		}
 		else
 		{
@@ -528,8 +543,6 @@ void ibis::bitvector::decompress_plwah()
 			
 			currentTmp.it++;
 			*currentTmp.it = current.Literal;
-			//transform the 0x80000001 into a leteral
-			if (*currentTmp.it ==0x80000001) *currentTmp.it = 0x00000000;
 			
 			currentTmp.it++;
 		}
