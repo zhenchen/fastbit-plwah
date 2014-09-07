@@ -4267,6 +4267,7 @@ void ibis::index::initBitmaps(int fdes) {
                         a0(fdes, offset32[i], offset32[i+1]);
                     ibis::bitvector* tmp = new ibis::bitvector(a0);
                     tmp->sloppySize(nrows);
+					tmp->decompress_plwah();
                     bits[i] = tmp;
 #if defined(WAH_CHECK_SIZE)
                     LOGGER(tmp->size() != nrows && ibis::gVerbose > 0)
