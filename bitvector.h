@@ -195,6 +195,9 @@ private:
     // static members, i.e., constants to be used internally
     static const unsigned MAXBITS;
     static const unsigned SECONDBIT;
+	static const unsigned THIRDBIT;
+	static const unsigned FOURTHBIT;
+	static const unsigned NINTHBIT;
     static const word_t FILLBIT;
     static const word_t HEADER0;
     static const word_t HEADER1;
