@@ -334,6 +334,7 @@ void ibis::bitvector::compress_plwah() {
 			}
 			else isPiggyBack = false;
 		}
+    }
     };
     xrun last;	// point to the last code word in m_vec that might be modified
                 // NOTE: last.isPiggyBack and last.dirty are not used by this function
