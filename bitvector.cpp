@@ -335,7 +335,7 @@ void ibis::bitvector::compress_plwah() {
 			else isPiggyBack = false;
 		}
     }
-    };
+	};
     xrun last;	// point to the last code word in m_vec that might be modified
                 // NOTE: last.isPiggyBack and last.dirty are not used by this function
     xrun current;// point to the current code to be examined
@@ -542,13 +542,17 @@ void ibis::bitvector::decompress_plwah()
 			//transform the 0x80000001 into a leteral
 			if (*currentTmp.it ==0x80000001) *currentTmp.it = 0x00000000;
 			
-			currentTmp.it++;
+			++currentTmp.it;
 			*currentTmp.it = current.Literal;
 			
-			currentTmp.it++;
+			++currentTmp.it;
 		}
-//		std::cout<<std::hex<<*(m_vec.begin())<<std::endl;	
+//		std::cout<<std::hex<<*(m_vec.begin())<<std::endl;
 	}
+	
+	if (currentTmp.it < tmp_vec->m_vec.end())
+		tmp_vec->m_vec.erase(currentTmp.it, tmp_vec->m_vec.end());
+
 	m_vec.swap(tmp_vec->m_vec);//exanchge the two arrays.
 }// ibis::bitvector::decompress_plwah
 
@@ -2175,7 +2179,7 @@ void ibis::bitvector::read(const char * fn) {
 
 /// Write the bit vector to a file.
 /// The existing content of the file will be overwritten.
-void ibis::bitvector::write(const char * fn) const {
+void ibis::bitvector::write(const char * fn){
     if (fn == 0 || *fn == 0) return;
 
     FILE *out = fopen(fn, "wb");
@@ -2199,6 +2203,7 @@ void ibis::bitvector::write(const char * fn) const {
 	     << "Reset nbits to " << nb;
     }
 #endif
+	//compress_plwah();
     ierr = fwrite((const void*)m_vec.begin(), sizeof(word_t), m_vec.size(),
 		  out);
     if (ierr != (long)(m_vec.size())) {
