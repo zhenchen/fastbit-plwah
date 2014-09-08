@@ -119,16 +119,12 @@ public:
 
     // I/O functions.
     void read(const char *fn);
-    void write(const char *fn) const;
+    void write(const char *fn);
     void write(int fdes);
     void write(array_t<word_t>& arr) const;
 
     void compress();
     void decompress();
-    
-    void compress_plwah();
-    void decompress_plwah();
-    
     word_t compressible() const;
     /// Does this bit vector use less space than the maximum? Return true
     /// if yes, otherwise false.
@@ -196,7 +192,7 @@ private:
     static const unsigned MAXBITS;
     static const unsigned SECONDBIT;
 	static const unsigned THIRDBIT;
-	static const unsigned FOURTHBIT;
+    static const unsigned FOURTHBIT;
 	static const unsigned NINTHBIT;
     static const word_t FILLBIT;
     static const word_t HEADER0;
@@ -204,10 +200,10 @@ private:
     static const word_t ALLONES;
     static const word_t MAXCNT;
 	static const word_t MAXCNT_PLWAH;
-	static const word_t MAXCNT_PB;	//when a word contains a one-dirty-bit PiggyBack, the maximum of fill number.
-	static const word_t PIGGYBACK;	//PiggyBack flag: the third bit is set as 1;
-	static const word_t PIGGY_TO_FILL; //The 3rd - 9th bits are set as 0, and the other bits are set as 1. Help extract the part of Fill from a Fill with a PiggyBack.
-	static const word_t PIGGY_TO_LITERAL; //The 5th - 9th bits are set as 1, and the other bits are set as 0. Help extract the position of the dirty bit from a Fill with a PiggyBack.
+	static const word_t MAXCNT_PB;
+	static const word_t PIGGYBACK;
+	static const word_t PIGGY_TO_FILL;
+	static const word_t PIGGY_TO_LITERAL;
 
     /// @brief The struct active_word stores the last few bits that do not
     /// fill a whole word.
